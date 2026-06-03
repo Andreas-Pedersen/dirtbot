@@ -9,7 +9,7 @@ ESP32-basert motorstyringsprosjekt for en dirtbot med Sabertooth 2x25 motordrive
 - Knapp holdt inne = kjør, slipp = bremser gradvis til stopp
 - Webgrensesnitt for å justere maks-hastighet fremover og bakover uavhengig
 - Innstillinger lagres i flash (NVS) og overlever reboot
-- WiFi access point **torvtak** (åpent nettverk, ingen passord)
+- WiFi access point **Toilltak** (åpent nettverk, ingen passord)
 - Tilgang via captive portal eller **http://torvtak.local**
 
 ## Hardware
