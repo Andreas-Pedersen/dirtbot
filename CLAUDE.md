@@ -33,13 +33,17 @@ Knapper kobles mellom GPIO og GND (ingen ekstern motstand nødvendig).
 
 ## Sabertooth 2x25 oppsett
 
-Protokoll: **Simplified Serial**, 9600 baud
+Protokoll: **Simplified Serial**, 19200 baud
 
-DIP-switch innstilling:
-- SW1 = ON
-- SW2–SW6 = OFF
+DIP-switch innstilling (101101):
+- SW1 = ON  — Simplified Serial mode (bit 0)
+- SW2 = OFF — Simplified Serial mode (bit 1)
+- SW3 = ON  — Auto lithium cutoff (DeWalt Li-ion batteri)
+- SW4 = ON  — 19200 baud (bit 0)
+- SW5 = OFF — 19200 baud (bit 1)
+- SW6 = ON  — Ingen slave select (M1 og M2 uavhengige)
 
-Motor 2 er invertert i kode (`MOTOR2_INVERTED true`) fordi motorene sitter speilvend på akselen.
+Motor 2 er invertert i kode fordi motorene sitter speilvend på akselen.
 
 ## Nettverkstilgang
 

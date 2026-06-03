@@ -8,9 +8,9 @@
 #define DEFAULT_M2_INVERTED   true
 
 // ── Timing ────────────────────────────────────────────────────────────────────
-#define SABER_BAUD          9600
+#define SABER_BAUD         19200
 #define MOTOR_TICK_MS         20
-#define DEBOUNCE_MS           20
+#define DEBOUNCE_MS          100
 #define WEB_CMD_TIMEOUT_MS  2000
 #define WEB_DRIVE_MAX_MS    3000
 #define STARTUP_HOLD_MS    30000
