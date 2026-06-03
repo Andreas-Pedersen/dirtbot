@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <pgmspace.h>
 
+extern int  fwdMax, bwdMax;
 extern int  fwdSpeed, bwdSpeed, accelLevel;
 extern int  pinBtnFwd, pinBtnBwd, pinSaberTx;
 extern bool motor1Inverted, motor2Inverted;
@@ -52,14 +53,14 @@ static const char PAGE_MAIN[] PROGMEM = R"html(<!DOCTYPE html>
     <label>Fart fremover</label>
     <span class="pct" id="fv">%FWD%&thinsp;%</span>
   </div>
-  <input type="range" id="fs" min="0" max="100" value="%FWD%"
+  <input type="range" id="fs" min="0" max="%FWDMAX%" value="%FWD%"
          oninput="document.getElementById('fv').textContent=this.value+' %'">
   <div class="divider"></div>
   <div class="row">
     <label>Fart bakover</label>
     <span class="pct" id="bv">%BWD%&thinsp;%</span>
   </div>
-  <input type="range" id="bs" min="0" max="100" value="%BWD%"
+  <input type="range" id="bs" min="0" max="%BWDMAX%" value="%BWD%"
          oninput="document.getElementById('bv').textContent=this.value+' %'">
   <button onclick="save()">Lagre</button>
   <div id="msg"></div>
@@ -160,14 +161,14 @@ static const char PAGE_SETTINGS[] PROGMEM = R"html(<!DOCTYPE html>
 <body>
 <h1>Toilltak</h1>
 <div class="card">
-  <h2>Maksfart (%)</h2>
+  <h2>Slider-tak (%)</h2>
   <div class="field">
-    <label>Fremover</label>
-    <input type="number" id="sfwd" min="0" max="100" value="%FWD%">
+    <label>Maks fremover</label>
+    <input type="number" id="sfwd" min="0" max="100" value="%FWDMAX%">
   </div>
   <div class="field">
-    <label>Bakover</label>
-    <input type="number" id="sbwd" min="0" max="100" value="%BWD%">
+    <label>Maks bakover</label>
+    <input type="number" id="sbwd" min="0" max="100" value="%BWDMAX%">
   </div>
 </div>
 <div class="card">
@@ -250,81 +251,90 @@ static const char PAGE_DEBUG[] PROGMEM = R"html(<!DOCTYPE html>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:monospace;background:#0d0d0d;color:#ccc;padding:16px;
-       display:flex;flex-direction:column;height:100vh}
-  h1{font-size:1.2rem;color:#6ecf6e;margin-bottom:10px;flex-shrink:0}
-  #log{flex:1;background:#111;border:1px solid #2a2a2a;border-radius:8px;
-       padding:10px;overflow-y:auto;font-size:.78rem;line-height:1.7;min-height:0}
-  .line{white-space:pre-wrap;padding:1px 0}
+       display:flex;flex-direction:column;gap:12px}
+  h1{font-size:1.2rem;color:#6ecf6e}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  td{padding:4px 8px;border-bottom:1px solid #1e1e1e}
+  td:first-child{color:#666;width:120px}
+  td:last-child{color:#eee;font-weight:bold}
+  .on{color:#6ecf6e!important}
+  .off{color:#444!important}
+  #log{background:#111;border:1px solid #2a2a2a;border-radius:8px;
+       padding:10px;height:50vh;overflow-y:auto;font-size:.75rem;line-height:1.7}
+  .line{white-space:pre-wrap}
   .BTN   {color:#6ecf6e}
   .WEB   {color:#6ab0e0}
   .SAFETY{color:#e07050}
-  .STATUS{color:#666}
-  .NVS   {color:#b070e0}
-  .CFG   {color:#b070e0}
+  .STATUS{color:#555}
+  .NVS,.CFG{color:#b070e0}
   .SYS   {color:#e0c060}
-  .SABER {color:#e0a030}
-  .GPIO  {color:#88bbcc}
-  .WiFi  {color:#88bbcc}
-  .mDNS  {color:#88bbcc}
-  .DNS   {color:#88bbcc}
-  .ts    {color:#444;margin-right:6px}
-  .bar{display:flex;gap:8px;margin-top:8px;flex-shrink:0;flex-wrap:wrap;align-items:center}
-  button{padding:7px 14px;background:#1e1e1e;border:1px solid #333;color:#aaa;
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{padding:6px 14px;background:#1e1e1e;border:1px solid #333;color:#aaa;
          border-radius:6px;cursor:pointer;font-size:.8rem}
   button:hover{background:#2a2a2a}
-  button.on{border-color:#6ecf6e;color:#6ecf6e}
-  #status{font-size:.75rem;color:#555;margin-left:auto}
-  .back{color:#444;text-decoration:none;font-size:.8rem}
-  .back:hover{color:#777}
+  #dot{width:8px;height:8px;border-radius:50%;background:#444;display:inline-block;margin-right:6px}
+  #dot.ok{background:#6ecf6e}
+  .back{color:#444;text-decoration:none;font-size:.8rem;margin-left:auto}
 </style>
 </head>
 <body>
 <h1>Toilltak Debug</h1>
+<table id="stat">
+  <tr><td>Oppstart</td><td id="s_ready">—</td></tr>
+  <tr><td>Hastighet</td><td id="s_speed">—</td></tr>
+  <tr><td>Knapp FWD</td><td id="s_fwd">—</td></tr>
+  <tr><td>Knapp BWD</td><td id="s_bwd">—</td></tr>
+  <tr><td>Web FWD</td><td id="s_wfwd">—</td></tr>
+  <tr><td>Web BWD</td><td id="s_wbwd">—</td></tr>
+  <tr><td>WiFi-klienter</td><td id="s_cl">—</td></tr>
+  <tr><td>Heap</td><td id="s_heap">—</td></tr>
+  <tr><td>Oppetid</td><td id="s_up">—</td></tr>
+</table>
 <div id="log"></div>
 <div class="bar">
-  <button onclick="clearLog()">Tøm</button>
-  <button id="pauseBtn" onclick="togglePause()">Pause</button>
-  <button id="scrollBtn" class="on" onclick="toggleScroll()">Auto-scroll</button>
-  <span id="status">Kobler til...</span>
+  <span><span id="dot"></span><span id="pollst">Kobler...</span></span>
+  <button onclick="document.getElementById('log').innerHTML=''">Tøm logg</button>
   <a class="back" href="/">&#8592; Tilbake</a>
 </div>
 <script>
-var paused=false,autoScroll=true,lineCount=0;
 var log=document.getElementById('log');
-var statusEl=document.getElementById('status');
-function clearLog(){log.innerHTML='';lineCount=0;}
-function togglePause(){
-  paused=!paused;
-  document.getElementById('pauseBtn').textContent=paused?'Fortsett':'Pause';
-  document.getElementById('pauseBtn').className=paused?'on':'';
-}
-function toggleScroll(){
-  autoScroll=!autoScroll;
-  document.getElementById('scrollBtn').className=autoScroll?'on':'';
-}
-function addLine(text,id){
-  if(paused)return;
-  var tag=(text.match(/\[(\w+)\]/)||[])[1]||'';
-  var t=(id/1000).toFixed(1);
-  var d=document.createElement('div');
-  d.className='line '+tag;
-  d.innerHTML='<span class="ts">'+t+'s</span>'+escHtml(text);
-  log.appendChild(d);
-  lineCount++;
-  if(lineCount>800)log.removeChild(log.firstChild);
-  if(autoScroll)log.scrollTop=log.scrollHeight;
-}
+var prevLog=[];
+function bool(v){return v?'<span class="on">JA</span>':'<span class="off">nei</span>';}
 function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');}
-var es=new EventSource('/events');
-es.addEventListener('log',function(e){
-  addLine(e.data,parseInt(e.lastEventId)||0);
-  statusEl.textContent='Tilkoblet';
-});
-es.onopen=function(){statusEl.textContent='Tilkoblet';};
-es.onerror=function(){
-  statusEl.textContent='Frakoblet — prøver igjen...';
-  addLine('--- tilkobling mistet ---',Date.now());
-};
+function poll(){
+  fetch('/debug-status')
+  .then(r=>r.json())
+  .then(function(d){
+    document.getElementById('dot').className='ok';
+    document.getElementById('pollst').textContent='Oppdatert';
+    document.getElementById('s_ready').innerHTML=d.ready?'<span class="on">Klar</span>':'<span class="on" style="color:#e07050">Venter...</span>';
+    document.getElementById('s_speed').textContent=d.speed.toFixed(1)+'%';
+    document.getElementById('s_fwd').innerHTML=bool(d.fwd);
+    document.getElementById('s_bwd').innerHTML=bool(d.bwd);
+    document.getElementById('s_wfwd').innerHTML=bool(d.wfwd);
+    document.getElementById('s_wbwd').innerHTML=bool(d.wbwd);
+    document.getElementById('s_cl').textContent=d.clients;
+    document.getElementById('s_heap').textContent=d.heap+' B';
+    document.getElementById('s_up').textContent=d.uptime+'s';
+    // Legg til nye logglinjer
+    var newLines=d.log.slice(prevLog.length);
+    newLines.forEach(function(msg){
+      var tag=(msg.match(/\[(\w+)\]/)||[])[1]||'';
+      var div=document.createElement('div');
+      div.className='line '+tag;
+      div.innerHTML=escHtml(msg);
+      log.appendChild(div);
+    });
+    if(newLines.length)log.scrollTop=log.scrollHeight;
+    prevLog=d.log;
+  })
+  .catch(function(){
+    document.getElementById('dot').className='';
+    document.getElementById('pollst').textContent='Ingen respons';
+  });
+}
+poll();
+setInterval(poll,1000);
 </script>
 </body>
 </html>)html";
@@ -333,15 +343,17 @@ es.onerror=function(){
 
 static String buildMainPage() {
     String html = PAGE_MAIN;
-    html.replace("%FWD%", String(fwdSpeed));
-    html.replace("%BWD%", String(bwdSpeed));
+    html.replace("%FWDMAX%", String(fwdMax));
+    html.replace("%BWDMAX%", String(bwdMax));
+    html.replace("%FWD%",    String(fwdSpeed));
+    html.replace("%BWD%",    String(bwdSpeed));
     return html;
 }
 
 static String buildSettingsPage() {
     String html = PAGE_SETTINGS;
-    html.replace("%FWD%",     String(fwdSpeed));
-    html.replace("%BWD%",     String(bwdSpeed));
+    html.replace("%FWDMAX%",  String(fwdMax));
+    html.replace("%BWDMAX%",  String(bwdMax));
     html.replace("%ACCEL%",   String(accelLevel));
     html.replace("%PIN_FWD%", String(pinBtnFwd));
     html.replace("%PIN_BWD%", String(pinBtnBwd));

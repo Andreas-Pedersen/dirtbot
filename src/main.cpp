@@ -13,10 +13,9 @@
 
 // ── Globals ───────────────────────────────────────────────────────────────────
 
-DNSServer        dns;
-AsyncWebServer   server(80);
-AsyncEventSource events("/events");
-Preferences      prefs;
+DNSServer      dns;
+AsyncWebServer server(80);
+Preferences    prefs;
 
 int  pinBtnFwd      = DEFAULT_PIN_BTN_FWD;
 int  pinBtnBwd      = DEFAULT_PIN_BTN_BWD;
@@ -24,7 +23,9 @@ int  pinSaberTx     = DEFAULT_PIN_SABER_TX;
 bool motor1Inverted = DEFAULT_M1_INVERTED;
 bool motor2Inverted = DEFAULT_M2_INVERTED;
 
-int   fwdSpeed   = 70;
+int   fwdMax     = 100;  // slider-tak fra innstillingssiden
+int   bwdMax     = 100;
+int   fwdSpeed   = 70;   // nåværende sliderverdi
 int   bwdSpeed   = 70;
 int   accelLevel = 3;
 float curSpeed   = 0.0f;
@@ -86,8 +87,8 @@ static void registerRoutes() {
     });
 
     server.on("/set", HTTP_GET, [](AsyncWebServerRequest *req) {
-        if (req->hasParam("fwd")) fwdSpeed = constrain(req->getParam("fwd")->value().toInt(), 0, 100);
-        if (req->hasParam("bwd")) bwdSpeed = constrain(req->getParam("bwd")->value().toInt(), 0, 100);
+        if (req->hasParam("fwd")) fwdSpeed = constrain(req->getParam("fwd")->value().toInt(), 0, fwdMax);
+        if (req->hasParam("bwd")) bwdSpeed = constrain(req->getParam("bwd")->value().toInt(), 0, bwdMax);
         saveSpeedSettings();
         req->send(200, "text/plain", "OK");
     });
@@ -110,8 +111,10 @@ static void registerRoutes() {
     });
 
     server.on("/save-config", HTTP_GET, [](AsyncWebServerRequest *req) {
-        if (req->hasParam("sfwd"))  fwdSpeed       = constrain(req->getParam("sfwd")->value().toInt(),  0, 100);
-        if (req->hasParam("sbwd"))  bwdSpeed       = constrain(req->getParam("sbwd")->value().toInt(),  0, 100);
+        if (req->hasParam("sfwd"))  fwdMax         = constrain(req->getParam("sfwd")->value().toInt(),  0, 100);
+        if (req->hasParam("sbwd"))  bwdMax         = constrain(req->getParam("sbwd")->value().toInt(),  0, 100);
+        fwdSpeed = constrain(fwdSpeed, 0, fwdMax);
+        bwdSpeed = constrain(bwdSpeed, 0, bwdMax);
         if (req->hasParam("accel")) accelLevel     = constrain(req->getParam("accel")->value().toInt(), 1, 10);
         if (req->hasParam("pfwd"))  pinBtnFwd      = constrain(req->getParam("pfwd")->value().toInt(),  0, 39);
         if (req->hasParam("pbwd"))  pinBtnBwd      = constrain(req->getParam("pbwd")->value().toInt(),  0, 39);
@@ -137,12 +140,23 @@ static void registerRoutes() {
         req->send(200, "text/html", PAGE_DEBUG);
     });
 
-    registerCaptiveRoutes();
-
-    events.onConnect([](AsyncEventSourceClient *client) {
-        logf("[DBG] Debug-klient tilkoblet");
+    server.on("/debug-status", HTTP_GET, [](AsyncWebServerRequest *req) {
+        String j = "{";
+        j += "\"ready\":"   + String(startupReady ? 1 : 0)            + ",";
+        j += "\"fwd\":"     + String(fwdState ? 1 : 0)                + ",";
+        j += "\"bwd\":"     + String(bwdState ? 1 : 0)                + ",";
+        j += "\"wfwd\":"    + String(webFwd ? 1 : 0)                  + ",";
+        j += "\"wbwd\":"    + String(webBwd ? 1 : 0)                  + ",";
+        j += "\"speed\":"   + String(curSpeed, 1)                     + ",";
+        j += "\"heap\":"    + String(ESP.getFreeHeap())                + ",";
+        j += "\"clients\":" + String(WiFi.softAPgetStationNum())       + ",";
+        j += "\"uptime\":"  + String(millis() / 1000)                 + ",";
+        j += "\"log\":"     + buildLogJson();
+        j += "}";
+        req->send(200, "application/json", j);
     });
-    server.addHandler(&events);
+
+    registerCaptiveRoutes();
 
     server.onNotFound([](AsyncWebServerRequest *req) {
         req->redirect("http://" + AP_IP.toString() + "/");
@@ -165,17 +179,28 @@ void setup() {
     pinMode(pinBtnFwd, INPUT_PULLUP);
     pinMode(pinBtnBwd, INPUT_PULLUP);
 
+    Serial.printf("Heap: %u bytes fritt\n", ESP.getFreeHeap());
+
+    WiFi.disconnect(true);
     WiFi.mode(WIFI_AP);
+    delay(100);
     WiFi.softAPConfig(AP_IP, AP_IP, AP_SUBNET);
-    WiFi.softAP(AP_SSID);
+    bool apOk = WiFi.softAP(AP_SSID);
+    delay(500);  // Vent på at DHCP-server er klar
+    Serial.printf("softAP(\"%s\"): %s\n", AP_SSID, apOk ? "OK" : "FEILET");
+    Serial.printf("IP: %s\n", WiFi.softAPIP().toString().c_str());
 
     dns.start(53, "*", AP_IP);
+    Serial.println("DNS: OK");
 
     if (MDNS.begin(MDNS_NAME))
-        MDNS.addService("http", "tcp", 80);
+        Serial.printf("mDNS: http://%s.local\n", MDNS_NAME);
+    else
+        Serial.println("mDNS: FEILET");
 
     registerRoutes();
     server.begin();
+    Serial.printf("HTTP server startet. Heap: %u bytes fritt\n", ESP.getFreeHeap());
 }
 
 // ── Loop ──────────────────────────────────────────────────────────────────────
