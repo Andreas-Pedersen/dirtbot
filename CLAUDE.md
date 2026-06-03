@@ -22,12 +22,12 @@ ESP32-basert styring for en dirtbot med to motorer på bakakselen og manuell sty
 
 ## Pinout
 
-| ESP32 GPIO | Til |
-|------------|-----|
-| GPIO 32 | Fremover-knapp (aktiv lav, intern pull-up) |
-| GPIO 33 | Bakover-knapp (aktiv lav, intern pull-up) |
-| GPIO 17 (Serial2 TX) | Sabertooth S1 |
-| GND | Sabertooth 0V / GND (felles) |
+| ESP32 GPIO | Til | Ledningsfarge |
+|------------|-----|---------------|
+| GPIO 32 | Fremover-knapp (aktiv lav, intern pull-up) | Gul |
+| GPIO 33 | Bakover-knapp (aktiv lav, intern pull-up) | Oransje |
+| GPIO 17 (Serial2 TX) | Sabertooth S1 | — |
+| GND | Sabertooth 0V / GND (felles) | — |
 
 Knapper kobles mellom GPIO og GND (ingen ekstern motstand nødvendig).
 
