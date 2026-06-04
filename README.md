@@ -38,7 +38,7 @@ ESP32-basert motorstyringsprosjekt for en dirtbot med Sabertooth 2x25 motordrive
 
 ### Sabertooth 2x25 v1 — DIP-switch (101101)
 
-![Sabertooth 2zx25](esabertooth.png)
+![Sabertooth 2zx25](sabertooth.png)
 
 Simplified Serial, 19200 baud:
 
