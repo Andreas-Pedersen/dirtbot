@@ -32,9 +32,13 @@ ESP32-basert motorstyringsprosjekt for en dirtbot med Sabertooth 2x25 motordrive
 | GPIO 17 (TX2) | Sabertooth S1 | — |
 | GND | Sabertooth 0V (felles GND) | Svart |
 
+![Esp32Wroom pinout](esp32.png)
+
 **Merk:** Koble 100nF keramisk kondensator fra GPIO 32/33 til GND (tett på ESP32) for støyfiltrering. Motorstøy fra Sabertooth kan ellers gi falske knappetrykk.
 
 ### Sabertooth 2x25 v1 — DIP-switch (101101)
+
+![Sabertooth 2zx25](esabertooth.png)
 
 Simplified Serial, 19200 baud:
 
